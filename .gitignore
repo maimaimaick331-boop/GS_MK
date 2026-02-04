@@ -1,0 +1,27 @@
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+ENV/
+
+# Data and Logs
+data/*.db
+data/raw/
+*.log
+logs/
+
+# IDE and System
+.idea/
+.vscode/
+.trae/
+.DS_Store
+Thumbs.db
+
+# Frontend dependencies
+node_modules/
+dist/
+build/

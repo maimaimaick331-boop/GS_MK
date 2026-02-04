@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Silver & Gold Market Data - Quick Test</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            text-align: center;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        
+        .header h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 2.5em;
+        }
+        
+        .header p {
+            color: #666;
+            font-size: 1.1em;
+        }
+        
+        .status {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        
+        .status-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px;
+            border-bottom: 1px solid #eee;
+            font-size: 1.1em;
+        }
+        
+        .status-item:last-child {
+            border-bottom: none;
+        }
+        
+        .status-label {
+            font-weight: bold;
+            color: #333;
+        }
+        
+        .status-value {
+            color: #667eea;
+            font-weight: bold;
+        }
+        
+        .success {
+            color: #27ae60;
+        }
+        
+        .error {
+            color: #e74c3c;
+        }
+        
+        .buttons {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 5px;
+            font-size: 1em;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(102, 126, 234, 0.4);
+        }
+        
+        button:active {
+            transform: translateY(0);
+        }
+        
+        .data-display {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        
+        .data-display h3 {
+            color: #333;
+            margin-bottom: 15px;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 10px;
+        }
+        
+        .data-item {
+            padding: 10px;
+            background: #f8f9fa;
+            margin: 8px 0;
+            border-left: 4px solid #667eea;
+            border-radius: 3px;
+        }
+        
+        .data-key {
+            font-weight: bold;
+            color: #555;
+        }
+        
+        .data-value {
+            color: #667eea;
+            font-family: monospace;
+        }
+        
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            vertical-align: middle;
+            margin-right: 10px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .info {
+            background: #e8f4f8;
+            border-left: 4px solid #3498db;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 20px;
+            color: #2c3e50;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🥇 Silver & Gold Market API</h1>
+            <p>Quick Test Interface</p>
+        </div>
+        
+        <div class="status">
+            <div class="status-item">
+                <span class="status-label">API Server Status:</span>
+                <span class="status-value" id="apiStatus">Checking...</span>
+            </div>
+            <div class="status-item">
+                <span class="status-label">Server URL:</span>
+                <span class="status-value">http://localhost:5000</span>
+            </div>
+            <div class="status-item">
+                <span class="status-label">Last Updated:</span>
+                <span class="status-value" id="lastUpdated">Never</span>
+            </div>
+        </div>
+        
+        <div class="buttons">
+            <button onclick="testHealth()">🔍 Test Health</button>
+            <button onclick="getComexData()">📦 Get COMEX Data</button>
+            <button onclick="getETFData()">💰 Get ETF Data</button>
+            <button onclick="getPriceData()">📈 Get Prices</button>
+            <button onclick="collectData()">📊 Collect Data</button>
+        </div>
+        
+        <div id="results"></div>
+        
+        <div class="info">
+            <strong>💡 Tips:</strong><br>
+            • All data is served from the Python API server running on localhost:5000<br>
+            • Use these buttons to test different API endpoints<br>
+            • Results will be displayed below<br>
+            • To integrate with frontend, update the API_BASE URL in frontend/js/api.js
+        </div>
+    </div>
+    
+    <script>
+        const API_BASE = 'http://localhost:5000/api';
+        
+        // Check API status on page load
+        window.addEventListener('load', () => {
+            checkApiStatus();
+            setInterval(checkApiStatus, 5000); // Check every 5 seconds
+        });
+        
+        function checkApiStatus() {
+            fetch(`${API_BASE}/health`, { mode: 'no-cors' })
+                .then(() => {
+                    document.getElementById('apiStatus').textContent = '✅ Online';
+                    document.getElementById('apiStatus').className = 'status-value success';
+                })
+                .catch(() => {
+                    document.getElementById('apiStatus').textContent = '❌ Offline';
+                    document.getElementById('apiStatus').className = 'status-value error';
+                });
+        }
+        
+        async function testHealth() {
+            showLoading('Testing health endpoint...');
+            try {
+                const response = await fetch(`${API_BASE}/health`);
+                const data = await response.json();
+                displayData('Health Check Result', data);
+            } catch (error) {
+                displayError('Error: ' + error.message);
+            }
+        }
+        
+        async function getComexData() {
+            showLoading('Fetching COMEX data...');
+            try {
+                const response = await fetch(`${API_BASE}/comex/latest`);
+                const data = await response.json();
+                displayData('COMEX Warehouse Data', data);
+            } catch (error) {
+                displayError('Error: ' + error.message);
+            }
+        }
+        
+        async function getETFData() {
+            showLoading('Fetching ETF data...');
+            try {
+                const response = await fetch(`${API_BASE}/etf/latest`);
+                const data = await response.json();
+                displayData('Silver ETF Data', data);
+            } catch (error) {
+                displayError('Error: ' + error.message);
+            }
+        }
+        
+        async function getPriceData() {
+            showLoading('Fetching price data...');
+            try {
+                const response = await fetch(`${API_BASE}/price/latest`);
+                const data = await response.json();
+                displayData('Market Prices', data);
+            } catch (error) {
+                displayError('Error: ' + error.message);
+            }
+        }
+        
+        async function collectData() {
+            showLoading('Collecting data...');
+            try {
+                const response = await fetch(`${API_BASE}/collect`, { method: 'POST' });
+                const data = await response.json();
+                displayData('Data Collection Result', data);
+            } catch (error) {
+                displayError('Error: ' + error.message);
+            }
+        }
+        
+        function showLoading(message) {
+            const results = document.getElementById('results');
+            results.innerHTML = `<div class="data-display"><div class="loading"></div>${message}</div>`;
+        }
+        
+        function displayData(title, data) {
+            const results = document.getElementById('results');
+            const timestamp = new Date().toLocaleTimeString();
+            document.getElementById('lastUpdated').textContent = timestamp;
+            
+            let html = `<div class="data-display"><h3>${title}</h3>`;
+            html += formatData(data);
+            html += '</div>';
+            
+            results.innerHTML = html;
+        }
+        
+        function formatData(obj, depth = 0) {
+            if (typeof obj !== 'object' || obj === null) {
+                return `<div class="data-item"><span class="data-value">${JSON.stringify(obj)}</span></div>`;
+            }
+            
+            let html = '';
+            for (const [key, value] of Object.entries(obj)) {
+                if (typeof value === 'object' && value !== null) {
+                    html += `<div class="data-item"><span class="data-key">${key}:</span><div style="margin-left: 20px; margin-top: 5px;">${formatData(value, depth + 1)}</div></div>`;
+                } else {
+                    html += `<div class="data-item"><span class="data-key">${key}:</span> <span class="data-value">${JSON.stringify(value)}</span></div>`;
+                }
+            }
+            return html;
+        }
+        
+        function displayError(message) {
+            const results = document.getElementById('results');
+            results.innerHTML = `<div class="data-display" style="border-left: 4px solid #e74c3c;"><h3 style="color: #e74c3c;">Error</h3><p>${message}</p></div>`;
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,19 @@
+{
+  "name": "silver-gold-analysis",
+  "version": "1.0.0",
+  "description": "金银市场数据分析平台",
+  "main": "index.html",
+  "scripts": {
+    "start": "python -m http.server 8000",
+    "build": "echo 'Build script here'",
+    "test": "echo 'Test script here'"
+  },
+  "keywords": [
+    "silver",
+    "gold",
+    "market",
+    "analysis"
+  ],
+  "author": "",
+  "license": "MIT"
+}

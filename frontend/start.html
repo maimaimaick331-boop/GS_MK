@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>金银市场数据分析平台 - 启动中心</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Microsoft YaHei', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 500px;
+            width: 100%;
+            padding: 50px 40px;
+            text-align: center;
+        }
+
+        .logo {
+            font-size: 60px;
+            margin-bottom: 20px;
+            animation: bounce 2s infinite;
+        }
+
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+
+        h1 {
+            color: #333;
+            font-size: 2em;
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            color: #666;
+            font-size: 1.1em;
+            margin-bottom: 40px;
+        }
+
+        .status-box {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 30px;
+            border-left: 4px solid #667eea;
+        }
+
+        .status-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+            font-size: 0.95em;
+        }
+
+        .status-label {
+            color: #555;
+            font-weight: 600;
+        }
+
+        .status-value {
+            font-weight: bold;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 0.9em;
+        }
+
+        .status-value.online {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status-value.offline {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .status-value.checking {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .button-group {
+            display: grid;
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+
+        button {
+            padding: 18px;
+            border: none;
+            border-radius: 10px;
+            font-size: 1.1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            color: white;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 15px 35px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-primary:active {
+            transform: translateY(-1px);
+        }
+
+        .btn-secondary {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            box-shadow: 0 10px 25px rgba(245, 87, 108, 0.3);
+            font-size: 1em;
+            padding: 12px;
+        }
+
+        .btn-secondary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 30px rgba(245, 87, 108, 0.4);
+        }
+
+        .info-section {
+            background: #e3f2fd;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            text-align: left;
+            border-left: 4px solid #2196f3;
+        }
+
+        .info-section h3 {
+            color: #1976d2;
+            margin-bottom: 10px;
+            font-size: 1em;
+        }
+
+        .info-section ul {
+            list-style: none;
+            color: #555;
+            font-size: 0.95em;
+            line-height: 1.8;
+        }
+
+        .info-section li {
+            margin-bottom: 8px;
+        }
+
+        .info-section li:before {
+            content: "✓ ";
+            color: #4caf50;
+            font-weight: bold;
+            margin-right: 8px;
+        }
+
+        .divider {
+            height: 1px;
+            background: #ddd;
+            margin: 30px 0;
+        }
+
+        .quick-links {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .quick-link {
+            background: #f8f9fa;
+            padding: 12px;
+            border-radius: 8px;
+            text-decoration: none;
+            color: #667eea;
+            font-size: 0.9em;
+            font-weight: 600;
+            transition: all 0.3s;
+            border: 1px solid #e0e0e0;
+        }
+
+        .quick-link:hover {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+            margin-left: 10px;
+            vertical-align: middle;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .footer {
+            color: #999;
+            font-size: 0.85em;
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid #eee;
+        }
+
+        .feature-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .feature-card {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .feature-card .icon {
+            font-size: 2em;
+            margin-bottom: 8px;
+        }
+
+        .feature-card .label {
+            color: #555;
+            font-size: 0.9em;
+            font-weight: 600;
+        }
+
+        .success-message {
+            display: none;
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="logo">🥇</div>
+        <h1>金银市场数据分析平台</h1>
+        <p class="subtitle">启动中心</p>
+
+        <div id="successMessage" class="success-message">
+            ✅ 应用已启动，正在打开浏览器...
+        </div>
+
+        <div class="status-box">
+            <div class="status-item">
+                <span class="status-label">API服务器</span>
+                <span class="status-value" id="apiStatus">检查中 <span class="spinner"></span></span>
+            </div>
+            <div class="status-item">
+                <span class="status-label">前端服务器</span>
+                <span class="status-value" id="frontendStatus">检查中 <span class="spinner"></span></span>
+            </div>
+        </div>
+
+        <div class="feature-grid">
+            <div class="feature-card">
+                <div class="icon">📊</div>
+                <div class="label">实时数据</div>
+            </div>
+            <div class="feature-card">
+                <div class="icon">📈</div>
+                <div class="label">趋势分析</div>
+            </div>
+            <div class="feature-card">
+                <div class="icon">💰</div>
+                <div class="label">ETF持仓</div>
+            </div>
+            <div class="feature-card">
+                <div class="icon">📦</div>
+                <div class="label">库存数据</div>
+            </div>
+        </div>
+
+        <div class="button-group">
+            <button class="btn-primary" onclick="launchApplication()">
+                🚀 启动应用程序
+            </button>
+            <button class="btn-secondary" onclick="testServices()">
+                🔍 检查服务状态
+            </button>
+        </div>
+
+        <div class="info-section">
+            <h3>💡 功能特性</h3>
+            <ul>
+                <li>实时COMEX库存监控</li>
+                <li>白银ETF持仓追踪</li>
+                <li>多市场价格对比</li>
+                <li>投资分析工具</li>
+            </ul>
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="quick-links">
+            <a href="http://localhost:5000/api/health" class="quick-link" target="_blank">
+                🔗 API健康检查
+            </a>
+            <a href="http://localhost:5000/api" class="quick-link" target="_blank">
+                📖 API文档
+            </a>
+            <a href="http://localhost:5000/api/comex/latest" class="quick-link" target="_blank">
+                📦 COMEX数据
+            </a>
+            <a href="http://localhost:5000/api/price/latest" class="quick-link" target="_blank">
+                💹 市场价格
+            </a>
+        </div>
+
+        <div class="footer">
+            <p>版本 1.1 | 2026年2月3日</p>
+            <p style="margin-top: 10px; font-size: 0.8em;">
+                首次启动? <a href="#" onclick="showHelp(); return false;" style="color: #667eea; text-decoration: underline;">查看帮助</a>
+            </p>
+        </div>
+    </div>
+
+    <script>
+        // Check service status
+        function checkServices() {
+            checkAPI();
+            checkFrontend();
+        }
+
+        function checkAPI() {
+            fetch('http://localhost:5000/api/health', { mode: 'no-cors' })
+                .then(() => {
+                    updateStatus('apiStatus', 'online', '✅ 在线');
+                })
+                .catch(() => {
+                    updateStatus('apiStatus', 'offline', '❌ 离线');
+                });
+        }
+
+        function checkFrontend() {
+            fetch('http://localhost:8000', { mode: 'no-cors' })
+                .then(() => {
+                    updateStatus('frontendStatus', 'online', '✅ 在线');
+                })
+                .catch(() => {
+                    updateStatus('frontendStatus', 'offline', '❌ 离线');
+                });
+        }
+
+        function updateStatus(elementId, status, text) {
+            const element = document.getElementById(elementId);
+            element.textContent = text;
+            element.className = 'status-value ' + status;
+        }
+
+        function launchApplication() {
+            document.getElementById('successMessage').style.display = 'block';
+            window.open('http://localhost:8000', '_blank');
+            setTimeout(() => {
+                checkServices();
+            }, 500);
+        }
+
+        function testServices() {
+            checkServices();
+            alert('正在检查服务状态...\n\n请查看上面的状态指示器。');
+        }
+
+        function showHelp() {
+            alert(`
+帮助信息：
+
+1. 确保API服务器在运行
+   - 在PowerShell中运行: cd backend && python simple_server.py
+
+2. 确保前端服务器在运行
+   - 在另一个PowerShell中运行: cd frontend && python -m http.server 8000
+
+3. 使用一键启动脚本
+   - 运行: one-click-start.bat
+
+4. 访问应用
+   - 点击"启动应用程序"按钮
+   - 或直接访问: http://localhost:8000
+
+有问题? 查看README.md获取更多帮助
+            `);
+        }
+
+        // Check services on page load
+        window.addEventListener('load', () => {
+            setTimeout(checkServices, 500);
+            setInterval(checkServices, 5000); // Check every 5 seconds
+        });
+    </script>
+</body>
+</html>

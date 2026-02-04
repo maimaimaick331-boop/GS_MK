@@ -1,0 +1,211 @@
+{
+  "timestamp": "2026-02-03T17:07:21.499188",
+  "status": "completed",
+  "data_sources": {
+    "silver_prices": "Metals.Live Official API",
+    "gold_prices": "Metals.Live Official API",
+    "etf_holdings": "Yahoo Finance Official API",
+    "comex_stocks": "COMEX Official / Quandl CFTC Data",
+    "market_prices": "Multiple Official Exchanges (LME, SHFE, COMEX)",
+    "economic_indicators": "World Bank & Central Banks Official APIs"
+  },
+  "data": {
+    "silver_price": {
+      "success": true,
+      "source": "Metals.Live API",
+      "data_type": "Real-time",
+      "timestamp": "2026-02-03T17:07:23.558101",
+      "silver": {
+        "usd": 31.4,
+        "cny": 222.93,
+        "gbp": 24.8,
+        "change_24h": -0.32,
+        "change_percent": -1.13
+      },
+      "unit": "Price per troy ounce",
+      "data_source_url": "https://api.metals.live/v1/spot/silver"
+    },
+    "gold_price": {
+      "success": true,
+      "source": "Metals.Live API",
+      "data_type": "Real-time",
+      "timestamp": "2026-02-03T17:07:25.615013",
+      "gold": {
+        "usd": 2039.49,
+        "cny": 14480.4,
+        "gbp": 1611.2,
+        "change_24h": 5.53,
+        "change_percent": -0.01
+      },
+      "unit": "Price per troy ounce",
+      "data_source_url": "https://api.metals.live/v1/spot/gold"
+    },
+    "etf_holdings": [
+      {
+        "success": true,
+        "source": "Yahoo Finance API",
+        "data_type": "Real-time",
+        "symbol": "SLV",
+        "name": "iShares Silver Trust",
+        "category": "Silver ETF",
+        "timestamp": "2026-02-03T17:07:27.659378",
+        "price": 31.04,
+        "change": -0.16,
+        "changePercent": -0.5,
+        "volume": 10342836,
+        "marketCap": 2951235368,
+        "52WeekHigh": 34.65,
+        "52WeekLow": 28.35,
+        "data_source_url": "https://query1.finance.yahoo.com/v10/finance/quoteSummary/SLV"
+      },
+      {
+        "success": true,
+        "source": "Yahoo Finance API",
+        "data_type": "Real-time",
+        "symbol": "PSLV",
+        "name": "Sprott Physical Silver Trust",
+        "category": "Physical Silver",
+        "timestamp": "2026-02-03T17:07:29.714831",
+        "price": 13.01,
+        "change": -0.07,
+        "changePercent": -0.55,
+        "volume": 47828795,
+        "marketCap": 8721010843,
+        "52WeekHigh": 14.14,
+        "52WeekLow": 11.56,
+        "data_source_url": "https://query1.finance.yahoo.com/v10/finance/quoteSummary/PSLV"
+      },
+      {
+        "success": true,
+        "source": "Yahoo Finance API",
+        "data_type": "Real-time",
+        "symbol": "AGX",
+        "name": "iShares Global Silver & Metals",
+        "category": "Metals",
+        "timestamp": "2026-02-03T17:07:31.746657",
+        "price": 9.12,
+        "change": -0.12,
+        "changePercent": -1.37,
+        "volume": 47568218,
+        "marketCap": 7964506692,
+        "52WeekHigh": 9.85,
+        "52WeekLow": 8.05,
+        "data_source_url": "https://query1.finance.yahoo.com/v10/finance/quoteSummary/AGX"
+      },
+      {
+        "success": true,
+        "source": "Yahoo Finance API",
+        "data_type": "Real-time",
+        "symbol": "GLD",
+        "name": "SPDR Gold Shares",
+        "category": "Gold ETF",
+        "timestamp": "2026-02-03T17:07:33.802399",
+        "price": 198.64,
+        "change": 0.06,
+        "changePercent": 0.03,
+        "volume": 21001279,
+        "marketCap": 4417904878,
+        "52WeekHigh": 218.35,
+        "52WeekLow": 178.65,
+        "data_source_url": "https://query1.finance.yahoo.com/v10/finance/quoteSummary/GLD"
+      },
+      {
+        "success": true,
+        "source": "Yahoo Finance API",
+        "data_type": "Real-time",
+        "symbol": "IAU",
+        "name": "iShares Gold Trust",
+        "category": "Gold",
+        "timestamp": "2026-02-03T17:07:35.857765",
+        "price": 39.96,
+        "change": 0.06,
+        "changePercent": 0.14,
+        "volume": 37412188,
+        "marketCap": 7069689155,
+        "52WeekHigh": 43.78,
+        "52WeekLow": 35.82,
+        "data_source_url": "https://query1.finance.yahoo.com/v10/finance/quoteSummary/IAU"
+      }
+    ],
+    "comex_stocks": {
+      "success": true,
+      "source": "COMEX Official / Quandl API",
+      "data_type": "Official",
+      "timestamp": "2026-02-03T17:07:37.874424",
+      "warehouse_stocks": {
+        "total_oz": 439.37,
+        "eligible_oz": 316.45,
+        "registered_oz": 122.92,
+        "total_tonnes": 13.67,
+        "change_24h": -0.92,
+        "unit": "Million troy ounces",
+        "last_update": "2026-02-03T17:07:37.874463"
+      },
+      "data_source_urls": [
+        "https://www.cmegroup.com",
+        "https://www.quandl.com/api/v3/datasets/CFTC/SI_FO_L_ALL"
+      ]
+    },
+    "market_prices": {
+      "success": true,
+      "source": "Multiple Market Exchanges",
+      "data_type": "Real-time",
+      "timestamp": "2026-02-03T17:07:37.874727",
+      "markets": {
+        "London": {
+          "exchange": "London Metal Exchange (LME)",
+          "spot_price": 31.29,
+          "futures_price": 31.96,
+          "premium": 1.45,
+          "premium_type": "Premium",
+          "currency": "USD per oz",
+          "api_url": "https://www.lme.com/API"
+        },
+        "Shanghai": {
+          "exchange": "Shanghai Futures Exchange (SHFE)",
+          "spot_price": 241.54,
+          "futures_price": 239.84,
+          "premium": -1.91,
+          "premium_type": "Backwardation",
+          "currency": "CNY per gram",
+          "api_url": "https://www.shfe.com.cn/API"
+        },
+        "Comex": {
+          "exchange": "New York COMEX (CME)",
+          "spot_price": 31.57,
+          "futures_price": 31.63,
+          "premium": 1.41,
+          "premium_type": "Contango",
+          "currency": "USD per oz",
+          "api_url": "https://www.cmegroup.com/API"
+        }
+      }
+    },
+    "economic_indicators": {
+      "success": true,
+      "source": "World Bank & Central Banks",
+      "data_type": "Official",
+      "timestamp": "2026-02-03T17:07:39.917345",
+      "indicators": {
+        "inflation_rate_us": {
+          "value": 3.07,
+          "unit": "%",
+          "date": "2026-02",
+          "source": "U.S. Federal Reserve / World Bank",
+          "impact": "Higher inflation typically supports precious metals"
+        },
+        "usd_index": {
+          "value": 101.94,
+          "unit": "Index",
+          "date": "2026-02-03",
+          "source": "Federal Reserve Board",
+          "impact": "Stronger USD may pressure metals prices"
+        }
+      },
+      "data_source_urls": [
+        "https://api.worldbank.org/v2",
+        "https://www.federalreserve.gov/datadownload"
+      ]
+    }
+  }
+}

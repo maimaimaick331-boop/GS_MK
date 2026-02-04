@@ -1,0 +1,81 @@
+project/
+Gold&Silver/
+│
+├── 📄 README.md                    # 完整项目文档
+├── 📄 QUICK_START.md              # 快速参考卡
+├── 📄 DEPLOYMENT.md               # 部署指南和清单
+├── 🎬 start.bat                   # Windows后端启动脚本
+├── 🎬 start.sh                    # Linux/Mac后端启动脚本
+├── 🎬 frontend-start.bat          # Windows前端启动脚本
+│
+├── 📂 backend/                    # 后端服务
+│   ├── 🐍 app.py                 # Flask API服务器（约450行）
+│   │                              # - 30+ API端点
+│   │                              # - 数据采集、查询、日志管理
+│   │
+│   ├── 🐍 models.py              # 数据模型定义（约150行）
+│   │                              # - ComexWarehouse (COMEX库存)
+│   │                              # - SilverETF (ETF持仓)
+│   │                              # - SilverPrice (白银价格)
+│   │                              # - GoldData (分析数据)
+│   │                              # - DataLog (采集日志)
+│   │
+│   ├── 🐍 config.py              # 配置文件（约40行）
+│   │                              # - 数据库配置
+│   │                              # - API配置
+│   │                              # - 数据源URL
+│   │
+│   ├── 🐍 data_collector.py      # 数据采集模块（约350行）
+│   │                              # - ComexDataCollector
+│   │                              # - ETFDataCollector
+│   │                              # - PriceDataCollector
+│   │                              # - InvestmentAnalyticsCollector
+│   │
+│   ├── 🐍 scheduler.py           # 定时采集任务（约60行）
+│   │                              # - 每1小时执行一次
+│   │                              # - 每天08:00执行一次
+│   │
+│   ├── 🐍 db_manager.py          # 数据库管理工具（约200行）
+│   │                              # - 备份数据库
+│   │                              # - 清理旧数据
+│   │                              # - 统计信息
+│   │                              # - 导出CSV
+│   │
+│   └── 📄 requirements.txt        # Python依赖列表
+│       ├── Flask==3.0.0
+│       ├── Flask-CORS==4.0.0
+│       ├── requests==2.31.0
+│       ├── SQLAlchemy==2.0.23
+│       ├── APScheduler==3.10.4
+│       └── ... (共10个依赖)
+│
+├── 📂 frontend/                   # 前端网站
+│   ├── 🌐 index.html             # 主页（约650行）
+│   │                              # - 响应式设计
+│   │                              # - 5个导航标签
+│   │                              # - 15+ 数据卡片
+│   │                              # - 内联CSS样式
+│   │
+│   ├── 📂 js/
+│   │   ├── 🔗 api.js             # API客户端（约180行）
+│   │   │                          # - APIClient 类
+│   │   │                          # - 12+ API方法
+│   │   │                          # - 数据格式化工具
+│   │   │
+│   │   └── 🔌 main.js            # 主程序脚本（约450行）
+│   │                              # - 数据加载函数
+│   │                              # - 图表创建（Chart.js）
+│   │                              # - UI交互逻辑
+│   │
+│   └── 📄 package.json           # 项目配置
+│
+├── 📂 data/                       # 数据存储目录
+│   └── 🗄️ silver_gold.db         # SQLite数据库
+│       ├── comex_warehouse (COMEX库存表)
+│       ├── silver_etf (ETF持仓表)
+│       ├── silver_price (价格表)
+│       ├── gold_data (分析数据表)
+│       └── data_log (采集日志表)
+│
+└── 📂 scripts/                    # 扩展脚本目录
+    └── (保留用于未来扩展)

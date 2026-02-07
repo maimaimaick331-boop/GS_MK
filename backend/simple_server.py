@@ -137,18 +137,10 @@ class DataHandler(BaseHTTPRequestHandler):
                 'data': data_cache['comex_data'].get('warehouse_stocks', {})
             }
         
-        # 备选数据
         return {
-            'success': True,
-            'source': 'COMEX',
-            'data': {
-                'date': datetime.now().isoformat(),
-                'total_oz': 442.48,
-                'eligible_oz': 317.04,
-                'registered_oz': 125.44,
-                'price': 31.50,
-                'note': 'Using fallback data - API not available'
-            }
+            'success': False,
+            'message': 'Real COMEX data not available',
+            'timestamp': datetime.now().isoformat()
         }
     
     def get_etf_data(self):
@@ -160,18 +152,10 @@ class DataHandler(BaseHTTPRequestHandler):
                 'data': data_cache['etf_data']
             }
         
-        # 备选数据
         return {
-            'success': True,
-            'source': 'ETF Holdings',
-            'data': [
-                {'symbol': 'SLV', 'price': 31.50, 'change': 0.15, 'changePercent': 0.48, 'volume': 15000000},
-                {'symbol': 'PSLV', 'price': 12.85, 'change': 0.10, 'changePercent': 0.78, 'volume': 5000000},
-                {'symbol': 'AGX', 'price': 8.95, 'change': -0.05, 'changePercent': -0.56, 'volume': 2000000},
-                {'symbol': 'GLD', 'price': 198.50, 'change': 0.50, 'changePercent': 0.25, 'volume': 12000000},
-                {'symbol': 'IAU', 'price': 39.80, 'change': 0.10, 'changePercent': 0.25, 'volume': 8000000}
-            ],
-            'note': 'Using fallback data - API not available'
+            'success': False,
+            'message': 'Real ETF data not available',
+            'timestamp': datetime.now().isoformat()
         }
     
     def get_price_data(self):
@@ -183,48 +167,10 @@ class DataHandler(BaseHTTPRequestHandler):
                 'data': data_cache['silver_price']
             }
         
-        # 备选数据
         return {
-            'success': True,
-            'source': 'Market Prices',
-            'data': {
-                'silver': {
-                    'usd': 31.45,
-                    'cny': 223.30,
-                    'gbp': 24.85,
-                    'source': 'Metals.Live'
-                },
-                'gold': {
-                    'usd': 2050.00,
-                    'cny': 14555.00,
-                    'gbp': 1620.00,
-                    'source': 'Metals.Live'
-                },
-                'markets': {
-                    'London': {
-                        'market': 'London',
-                        'spot_price': 31.45,
-                        'futures_price': 31.87,
-                        'premium': 1.34,
-                        'premium_type': 'Premium'
-                    },
-                    'Shanghai': {
-                        'market': 'Shanghai',
-                        'spot_price': 242.50,
-                        'futures_price': 241.20,
-                        'premium': -1.30,
-                        'premium_type': 'Backwardation'
-                    },
-                    'Comex': {
-                        'market': 'Comex',
-                        'spot_price': 31.50,
-                        'futures_price': 31.82,
-                        'premium': 1.02,
-                        'premium_type': 'Contango'
-                    }
-                }
-            },
-            'note': 'Using fallback data - API not available'
+            'success': False,
+            'message': 'Real price data not available',
+            'timestamp': datetime.now().isoformat()
         }
     
     def collect_data(self):
@@ -264,10 +210,9 @@ class DataHandler(BaseHTTPRequestHandler):
                 }
         
         return {
-            'success': True,
-            'message': 'Data collection completed (using fallback data)',
-            'timestamp': datetime.now().isoformat(),
-            'note': 'Real API collector not available'
+            'success': False,
+            'message': 'Real API collector not available',
+            'timestamp': datetime.now().isoformat()
         }
     
     def log_message(self, format, *args):

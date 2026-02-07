@@ -7,6 +7,9 @@ import random
 import time
 import hashlib
 import os
+import io
+import re
+import pandas as pd
 from pathlib import Path
 from datetime import datetime, timezone
 from typing import Dict, List, Optional, Any
@@ -56,137 +59,162 @@ class DataCollector:
 
 class ComexDataCollector(DataCollector):
     """COMEX & LME 库存数据采集 - 增强审计链 (P0)"""
-    
+
+    def _fetch_quandl_silver(self) -> Optional[Dict[str, Any]]:
+        try:
+            url = "https://www.quandl.com/api/v3/datasets/CFTC/SI_FO_L_ALL"
+            resp = requests.get(url, params={"api_key": "free", "rows": 1}, timeout=10)
+            if resp.status_code != 200:
+                return None
+            payload = resp.json()
+            dataset = payload.get("dataset", {})
+            data = dataset.get("data", [])
+            if not data:
+                return None
+            latest = data[0]
+            date_str = latest[0]
+            total = float(latest[1]) if len(latest) > 1 else None
+            eligible = float(latest[2]) if len(latest) > 2 else None
+            registered = float(latest[3]) if len(latest) > 3 else None
+            return {
+                "date": date_str,
+                "total": total,
+                "eligible": eligible,
+                "registered": registered,
+                "raw": latest,
+                "source_url": url
+            }
+        except Exception as e:
+            logger.error(f"[COMEX] Quandl fetch failed: {e}")
+            return None
+
+    def _parse_cme_report(self, content: bytes) -> Optional[Dict[str, Any]]:
+        try:
+            df = pd.read_excel(io.BytesIO(content), header=None)
+            lower = df.astype(str).applymap(lambda x: x.strip().lower())
+            header_row = None
+            for i in range(len(lower)):
+                row = lower.iloc[i].tolist()
+                if any("eligible" in c for c in row) and any("registered" in c for c in row):
+                    header_row = i
+                    break
+            if header_row is None or header_row + 1 >= len(df):
+                return None
+            header = lower.iloc[header_row].tolist()
+            values = df.iloc[header_row + 1].tolist()
+            total = eligible = registered = None
+            for idx, cell in enumerate(header):
+                if "total" in cell and total is None:
+                    total = values[idx]
+                elif "eligible" in cell and eligible is None:
+                    eligible = values[idx]
+                elif "registered" in cell and registered is None:
+                    registered = values[idx]
+            def to_number(val):
+                if val is None:
+                    return None
+                if isinstance(val, (int, float)):
+                    return float(val)
+                s = str(val).replace(",", "").strip()
+                return float(s) if s else None
+            total = to_number(total)
+            eligible = to_number(eligible)
+            registered = to_number(registered)
+            report_date = None
+            date_pattern = re.compile(r"\d{4}[-/]\d{2}[-/]\d{2}")
+            for row in lower.head(10).values.tolist():
+                for cell in row:
+                    m = date_pattern.search(cell)
+                    if m:
+                        report_date = m.group(0)
+                        break
+                if report_date:
+                    break
+            return {
+                "total": total,
+                "eligible": eligible,
+                "registered": registered,
+                "report_date": report_date,
+                "header_row": header_row + 1
+            }
+        except Exception as e:
+            logger.error(f"[COMEX] CME report parse failed: {e}")
+            return None
     def collect_warehouse_data(self) -> Optional[List[Dict]]:
         """采集仓库库存数据 (COMEX/LME)"""
         try:
             results = []
             now = datetime.now(timezone.utc)
             as_of_date = now.strftime("%Y-%m-%d")
-            
-            # --- 模拟 COMEX 原始报表持久化 ---
-            comex_mock_content = b"COMEX Silver Inventory Report Content Mock"
-            comex_hash = self.save_raw_report("CME", comex_mock_content, "silver_stocks.xls")
-            
-            # COMEX 基准数据与审计信息
-            comex_items = [
-                {
-                    'metal': 'silver', 'total_oz': 442.48, 'eligible_oz': 317.04, 'registered_oz': 125.44,
-                    'source_url': 'https://www.cmegroup.com/delivery_reports/Silver_Stocks.xls',
-                    'cell_ref': 'Summary!B5', 'field_name': 'Total/Eligible/Registered'
-                },
-                {
-                    'metal': 'gold', 'total_oz': 23.50, 'eligible_oz': 10.20, 'registered_oz': 13.30,
-                    'source_url': 'https://www.cmegroup.com/delivery_reports/Gold_Stocks.xls',
-                    'cell_ref': 'Summary!B5', 'field_name': 'Total/Eligible/Registered'
-                },
-                {
-                    'metal': 'copper', 'total_oz': 150000.0, 'eligible_oz': 80000.0, 'registered_oz': 70000.0,
-                    'source_url': 'https://www.cmegroup.com/delivery_reports/Copper_Stocks.xls',
-                    'cell_ref': 'Summary!B5', 'field_name': 'Total/Eligible/Registered'
-                }
-            ]
 
-            for item in comex_items:
-                # 勾稽校验: Total ≈ Eligible + Registered
-                diff = abs(item['total_oz'] - (item['eligible_oz'] + item['registered_oz']))
-                quality = "REALTIME"
-                if diff > 0.01:
-                    quality = "ERROR_DIFF"
-                    logger.warning(f"[COMEX] {item['metal']} validation failed: diff {diff}")
+            cme_reports = {
+                "silver": "https://www.cmegroup.com/delivery_reports/Silver_Stocks.xls",
+                "gold": "https://www.cmegroup.com/delivery_reports/Gold_Stocks.xls",
+                "copper": "https://www.cmegroup.com/delivery_reports/Copper_Stocks.xls"
+            }
 
-                data = {
-                    'date': now,
-                    'metal': item['metal'],
-                    'total_oz': item['total_oz'],
-                    'eligible_oz': item['eligible_oz'],
-                    'registered_oz': item['registered_oz'],
-                    'price': 0.0,
-                    'source': 'CME',
-                    'source_url': item['source_url'],
-                    'report_date': as_of_date,
-                    'fetched_at': now,
-                    'field_name': item['field_name'],
-                    'cell_ref': item['cell_ref'],
-                    'file_hash': comex_hash,
-                    'quality': quality,
-                    'mapping': f"Total({item['total_oz']}) = Eligible({item['eligible_oz']}) + Registered({item['registered_oz']})"
-                }
-                warehouse = ComexWarehouse(**data)
-                self.session.add(warehouse)
-                results.append(data)
+            for metal, url in cme_reports.items():
+                report_resp = requests.get(url, timeout=10)
+                if report_resp.status_code == 200:
+                    filename = url.split("/")[-1]
+                    file_hash = self.save_raw_report("CME", report_resp.content, filename)
+                    parsed = self._parse_cme_report(report_resp.content)
+                else:
+                    parsed = None
+                    file_hash = ""
 
-            # --- 模拟 LME 原始报表持久化 ---
-            lme_mock_content = b"LME Warehouse Stocks Report Content Mock"
-            lme_hash = self.save_raw_report("LME", lme_mock_content, "lme_stocks.xlsx")
-            
-            # LME 数据 (T+2)
-            lme_items = [
-                {
-                    'metal': 'silver', 'total_oz': 12.5, 'source_url': 'https://www.lme.com/Market-Data/Reports/Warehouse-reports',
-                    'field_name': 'on-warrant', 'cell_ref': 'Sheet1!C10'
-                },
-                {
-                    'metal': 'copper', 'total_oz': 85.2, 'source_url': 'https://www.lme.com/Market-Data/Reports/Warehouse-reports',
-                    'field_name': 'cancelled', 'cell_ref': 'Sheet1!D15'
-                }
-            ]
+                if not parsed and metal == "silver":
+                    qd = self._fetch_quandl_silver()
+                    if qd:
+                        parsed = {
+                            "total": qd["total"],
+                            "eligible": qd["eligible"],
+                            "registered": qd["registered"],
+                            "report_date": qd["date"],
+                            "header_row": "quandl"
+                        }
+                        file_hash = ""
 
-            for item in lme_items:
-                # LME 口径校验
-                quality = "REALTIME"
-                if not item['field_name'] or item['field_name'] == 'unknown':
-                    quality = "UNKNOWN_SPEC"
+                if not parsed:
+                    continue
+
+                total = parsed["total"]
+                eligible = parsed["eligible"]
+                registered = parsed["registered"]
+
+                if total is None or eligible is None or registered is None:
+                    continue
+
+                if metal in ["silver", "gold"] and total > 10000:
+                    total = total / 1_000_000.0
+                    eligible = eligible / 1_000_000.0
+                    registered = registered / 1_000_000.0
+
+                if metal == "copper" and total > 10000:
+                    total = total / 2204.62
+                    eligible = eligible / 2204.62
+                    registered = registered / 2204.62
+
+                diff = abs(total - (eligible + registered))
+                quality = "REALTIME" if diff <= 0.01 else "ERROR_DIFF"
 
                 data = {
-                    'date': now,
-                    'metal': item['metal'],
-                    'total_oz': item['total_oz'],
-                    'eligible_oz': 0.0,
-                    'registered_oz': 0.0,
-                    'price': 0.0,
-                    'source': 'LME',
-                    'source_url': item['source_url'],
-                    'report_date': (now).strftime("%Y-%m-%d"), # 实际上是 T+2，这里简化
-                    'fetched_at': now,
-                    'field_name': item['field_name'],
-                    'cell_ref': item['cell_ref'],
-                    'file_hash': lme_hash,
-                    'quality': quality,
-                    'mapping': f"LME {item['field_name']} stocks"
-                }
-                warehouse = ComexWarehouse(**data)
-                self.session.add(warehouse)
-                results.append(data)
-
-            # --- 模拟 SHFE 原始报表持久化 ---
-            shfe_mock_content = b"SHFE Warehouse Stocks Report Content Mock"
-            shfe_hash = self.save_raw_report("SHFE", shfe_mock_content, "shfe_stocks.pdf")
-            
-            # SHFE 数据 (吨)
-            shfe_items = [
-                {'metal': 'silver', 'total_oz': 1250.5, 'eligible_oz': 800.0, 'registered_oz': 450.5},
-                {'metal': 'gold', 'total_oz': 5.2, 'eligible_oz': 3.0, 'registered_oz': 2.2},
-                {'metal': 'copper', 'total_oz': 85000.0, 'eligible_oz': 50000.0, 'registered_oz': 35000.0}
-            ]
-
-            for item in shfe_items:
-                data = {
-                    'date': now,
-                    'metal': item['metal'],
-                    'total_oz': item['total_oz'],
-                    'eligible_oz': item['eligible_oz'],
-                    'registered_oz': item['registered_oz'],
-                    'price': 0.0,
-                    'source': 'SHFE',
-                    'source_url': 'http://www.shfe.com.cn/statements/dataview.html?paramid=kx',
-                    'report_date': as_of_date,
-                    'fetched_at': now,
-                    'field_name': 'Total/Warrant/Available',
-                    'cell_ref': 'WebTable',
-                    'file_hash': shfe_hash,
-                    'quality': 'REALTIME',
-                    'mapping': f"SHFE {item['metal']} stocks"
+                    "date": now,
+                    "metal": metal,
+                    "total_oz": total,
+                    "eligible_oz": eligible,
+                    "registered_oz": registered,
+                    "price": 0.0,
+                    "source": "CME",
+                    "source_url": url,
+                    "report_date": parsed.get("report_date") or as_of_date,
+                    "fetched_at": now,
+                    "field_name": "Total/Eligible/Registered",
+                    "cell_ref": str(parsed.get("header_row")),
+                    "file_hash": file_hash,
+                    "quality": quality,
+                    "raw_payload": json.dumps(parsed),
+                    "mapping": f"Total({total}) = Eligible({eligible}) + Registered({registered})"
                 }
                 warehouse = ComexWarehouse(**data)
                 self.session.add(warehouse)
@@ -202,36 +230,94 @@ class ComexDataCollector(DataCollector):
 
 class ETFDataCollector(DataCollector):
     """白银ETF数据采集 - 移除模拟随机数"""
-    
+
+    def _fetch_yahoo_quote(self, symbol: str) -> Optional[Dict[str, Any]]:
+        try:
+            url = f"https://query1.finance.yahoo.com/v10/finance/quoteSummary/{symbol}"
+            params = {"modules": "price,summaryDetail"}
+            headers = {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+            }
+            resp = requests.get(url, params=params, headers=headers, timeout=10)
+            if resp.status_code != 200:
+                return None
+            data = resp.json()
+            result = data.get("quoteSummary", {}).get("result", [])
+            return result[0] if result else None
+        except Exception as e:
+            logger.error(f"[ETF] Yahoo fetch failed for {symbol}: {e}")
+            return None
+
+    def _fetch_metals_spot(self, metal: str) -> Optional[float]:
+        try:
+            url = f"https://api.metals.live/v1/spot/{metal}"
+            resp = requests.get(url, timeout=10)
+            if resp.status_code != 200:
+                return None
+            payload = resp.json()
+            if isinstance(payload, list) and payload:
+                item = payload[0]
+                if isinstance(item, list) and len(item) >= 2:
+                    return float(item[1])
+                if isinstance(item, dict):
+                    val = item.get(metal) or item.get("price")
+                    return float(val) if val is not None else None
+            if isinstance(payload, dict):
+                val = payload.get("price") or payload.get(metal)
+                return float(val) if val is not None else None
+            return None
+        except Exception as e:
+            logger.error(f"[ETF] Metals.Live fetch failed: {e}")
+            return None
+
     def collect_etf_data(self) -> Optional[List[Dict]]:
         """采集白银ETF持仓数据"""
         try:
-            # 使用 SLV/PSLV 真实基准持仓 (百万盎司)
             etf_list = [
-                {'name': 'SLV', 'holdings': 13.2, 'yoy_change': -2.5},
-                {'name': 'PSLV', 'holdings': 5.8, 'yoy_change': 1.2},
-                {'name': 'AGX', 'holdings': 0.4, 'yoy_change': 0.0},
+                {"symbol": "SLV", "metal": "silver"},
+                {"symbol": "PSLV", "metal": "silver"},
+                {"symbol": "AGX", "metal": "silver"},
+                {"symbol": "GLD", "metal": "gold"},
+                {"symbol": "IAU", "metal": "gold"}
             ]
-            
+
             results = []
             now = datetime.now(timezone.utc)
+            spot_cache = {
+                "silver": self._fetch_metals_spot("silver"),
+                "gold": self._fetch_metals_spot("gold")
+            }
             for etf in etf_list:
+                quote = self._fetch_yahoo_quote(etf["symbol"])
+                if not quote:
+                    continue
+                price = quote.get("price", {}).get("regularMarketPrice", {}).get("raw")
+                change = quote.get("price", {}).get("regularMarketChange", {}).get("raw")
+                total_assets = quote.get("summaryDetail", {}).get("totalAssets", {}).get("raw")
+                holdings_oz = None
+                metal_spot = spot_cache.get(etf["metal"])
+                if total_assets and metal_spot:
+                    holdings_oz = (float(total_assets) / float(metal_spot)) / 1_000_000.0
                 etf_data = SilverETF(
                     date=now,
-                    etf_name=etf['name'],
-                    holdings_oz=etf['holdings'],
-                    yoy_change=etf['yoy_change'],
-                    price=0.0
+                    etf_name=etf["symbol"],
+                    holdings_oz=holdings_oz,
+                    yoy_change=None,
+                    price=price or 0.0,
+                    source="Yahoo Finance",
+                    provider_as_of=quote.get("price", {}).get("regularMarketTime")
                 )
                 self.session.add(etf_data)
                 results.append({
-                    'etf_name': etf['name'],
-                    'holdings_oz': etf['holdings'],
-                    'yoy_change': etf['yoy_change']
+                    "etf_name": etf["symbol"],
+                    "holdings_oz": holdings_oz,
+                    "yoy_change": None,
+                    "price": price,
+                    "source": "Yahoo Finance"
                 })
             
             self.session.commit()
-            self.log_data_collection('ETF_DATA', 'success', f"Collected {len(etf_list)} ETFs (Static benchmarks)")
+            self.log_data_collection('ETF_DATA', 'success', f"Collected {len(results)} ETFs (Yahoo Finance)")
             return results
         except Exception as e:
             self.log_data_collection('ETF_DATA', 'fail', str(e))
@@ -305,34 +391,54 @@ class PriceDataCollector(DataCollector):
             logger.error(f"Sina API 抓取失败: {str(e)}")
             return {}
 
-    def _fetch_yahoo(self, symbol: str) -> float:
-        """从 Yahoo Finance 获取备源价格 (P0-4 增强版)"""
+    def _fetch_yahoo(self, symbol: str) -> Dict[str, Any]:
         try:
             url = f"{self.YAHOO_URL}{symbol}"
             proxies = {"http": None, "https": None}
-            # 模拟真实浏览器头，防止被封
             headers = {
                 "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
                 "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
                 "Accept-Language": "en-US,en;q=0.9"
             }
-            
-            # 增加重试机制
             for attempt in range(2):
                 try:
                     resp = requests.get(url, headers=headers, timeout=5, proxies=proxies)
                     if resp.status_code == 200:
                         data = resp.json()
-                        price = data['chart']['result'][0]['meta']['regularMarketPrice']
+                        meta = data["chart"]["result"][0]["meta"]
+                        price = meta.get("regularMarketPrice")
+                        ts = meta.get("regularMarketTime")
                         logger.info(f"[Yahoo] Successfully fetched {symbol}: {price}")
-                        return float(price)
+                        return {"price": float(price), "time": ts, "raw": meta}
                     time.sleep(1)
                 except Exception as ex:
                     logger.warning(f"[Yahoo] Attempt {attempt+1} failed for {symbol}: {ex}")
-            return 0.0
+            return {}
         except Exception as e:
             logger.error(f"[Yahoo] Critical error fetching {symbol}: {e}")
-            return 0.0
+            return {}
+
+    def _fetch_metals_live(self, metal: str) -> Dict[str, Any]:
+        try:
+            url = f"https://api.metals.live/v1/spot/{metal}"
+            resp = requests.get(url, timeout=10)
+            if resp.status_code != 200:
+                return {}
+            payload = resp.json()
+            if isinstance(payload, list) and payload:
+                item = payload[0]
+                if isinstance(item, list) and len(item) >= 2:
+                    return {"price": float(item[1]), "time": item[0], "raw": item}
+                if isinstance(item, dict):
+                    val = item.get(metal) or item.get("price")
+                    return {"price": float(val), "time": item.get("timestamp") or item.get("date"), "raw": item}
+            if isinstance(payload, dict):
+                val = payload.get("price") or payload.get(metal)
+                return {"price": float(val), "time": payload.get("timestamp") or payload.get("date"), "raw": payload}
+            return {}
+        except Exception as e:
+            logger.error(f"[Metals.Live] fetch failed for {metal}: {e}")
+            return {}
 
     def _validate_data(self, main_val: float, backup_val: float, provider_as_of_str: str) -> Dict[str, Any]:
         """双源校验逻辑 (P0-4)"""
@@ -367,61 +473,77 @@ class PriceDataCollector(DataCollector):
             results = []
             now = datetime.now(timezone.utc)
             metals = ["gold", "silver", "copper"]
-            
-            # 准备 symbols
+
             sina_symbols = [self.SYMBOL_MAP[f"{market}_{m}"][0] for m in metals]
             sina_data = self._fetch_sina(sina_symbols)
-            
+
             for metal in metals:
                 map_key = f"{market}_{metal}"
                 sina_sym, yahoo_sym = self.SYMBOL_MAP[map_key]
-                
-                main_val = 0.0
+
+                main_val = None
                 as_of_str = ""
-                
-                # 尝试从 Sina 获取
-                if sina_sym in sina_data:
+                raw_payload = {}
+                source = ""
+
+                if market == "London" and metal in ["gold", "silver"]:
+                    api = self._fetch_metals_live(metal)
+                    if api.get("price"):
+                        main_val = api["price"]
+                        as_of_str = str(api.get("time") or "")
+                        raw_payload = api.get("raw") or {}
+                        source = "Metals.Live"
+                if main_val is None and market == "Comex":
+                    api = self._fetch_yahoo(yahoo_sym)
+                    if api.get("price"):
+                        main_val = api["price"]
+                        as_of_str = str(api.get("time") or "")
+                        raw_payload = api.get("raw") or {}
+                        source = "Yahoo"
+                if main_val is None and sina_sym in sina_data:
                     main_val = sina_data[sina_sym]["last"]
                     as_of_str = sina_data[sina_sym]["time"]
-                    logger.info(f"[{market}] Fetched {metal} from Sina: {main_val}")
+                    raw_payload = sina_data[sina_sym]["raw"]
+                    source = "Sina"
+                if main_val is None:
+                    api = self._fetch_yahoo(yahoo_sym)
+                    if api.get("price"):
+                        main_val = api["price"]
+                        as_of_str = str(api.get("time") or "")
+                        raw_payload = api.get("raw") or {}
+                        source = "Yahoo"
+                if main_val is None:
+                    logger.error(f"[{market}] No real source for {metal}")
+                    continue
+
+                backup_val = None
+                if source != "Sina" and sina_sym in sina_data:
+                    backup_val = sina_data[sina_sym]["last"]
+                if backup_val is None:
+                    backup = self._fetch_yahoo(yahoo_sym)
+                    if backup.get("price"):
+                        backup_val = backup["price"]
                 
-                # 如果 Sina 缺失，尝试从 Yahoo 获取
-                if main_val <= 0:
-                    logger.warning(f"[{market}] Sina data missing for {metal}, trying Yahoo...")
-                    main_val = self._fetch_yahoo(yahoo_sym)
-                    as_of_str = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-                    if main_val <= 0:
-                        logger.error(f"[{market}] Both Sina and Yahoo failed for {metal}")
-                        continue
-                
-                # 特殊逻辑: Comex 铜单位转换 (Sina hf_HG 是美分/lb, 需要转为 美元/lb)
                 if map_key == "Comex_copper" and main_val > 100:
                     main_val = main_val / 100.0
-                    logger.info(f"[Conversion] Comex Copper: Sina {main_val*100} cents/lb -> {main_val} USD/lb")
+                    logger.info(f"[Conversion] Comex Copper: {main_val*100} cents/lb -> {main_val} USD/lb")
 
-                # 特殊逻辑: London 铜单位转换 (如果从 Yahoo 获取的是 USD/lb, 需要转为 USD/ton)
-                if map_key == "London_copper" and main_val < 50: # 正常吨价在 8000+, lb价在 4.0 左右
+                if map_key == "London_copper" and main_val < 50:
                     main_val = main_val * 2204.62
-                    logger.info(f"[Conversion] London Copper: Yahoo {main_val/2204.62} USD/lb -> {main_val} USD/ton")
+                    logger.info(f"[Conversion] London Copper: {main_val/2204.62} USD/lb -> {main_val} USD/ton")
 
-                # 抓取备源 (Yahoo)
-                backup_val = self._fetch_yahoo(yahoo_sym)
+                if backup_val is not None:
+                    if map_key == "Comex_copper" and backup_val > 100:
+                        backup_val = backup_val / 100.0
+                    if map_key == "London_copper" and backup_val < 50:
+                        backup_val = backup_val * 2204.62
+
+                validation = self._validate_data(main_val, backup_val or main_val, as_of_str)
                 
-                # 特殊逻辑: 备源验证时的单位转换 (Yahoo HG=F 始终是 USD/lb)
-                if map_key == "London_copper" and backup_val > 0:
-                    backup_val_converted = backup_val * 2204.62
-                    validation = self._validate_data(main_val, backup_val_converted, as_of_str)
-                else:
-                    validation = self._validate_data(main_val, backup_val, as_of_str)
-                
-                # 纽约/伦敦数据映射优化
                 spot_price = main_val
                 futures_price = main_val
-                
-                # 如果是 COMEX 市场，通常主源就是期货价
                 if market == "Comex":
                     futures_price = main_val
-                # 如果是 London 市场，通常主源是现货价 (Spot)
                 elif market == "London":
                     spot_price = main_val
 
@@ -433,12 +555,12 @@ class PriceDataCollector(DataCollector):
                     'futures_price': futures_price,
                     'premium': 0.0,
                     'premium_type': 'Premium',
-                    'source': 'Sina' if sina_sym in sina_data else 'Yahoo',
+                    'source': source,
                     'provider_as_of': as_of_str,
                     'field_used': 'last',
                     'quality': validation["quality"],
-                    'raw_payload': json.dumps(sina_data[sina_sym]["raw"]) if sina_sym in sina_data else json.dumps({"price": main_val, "source": "Yahoo"}),
-                    'mapping': json.dumps({"price": "fields[0]", "time": "fields[12]+fields[6]"}),
+                    'raw_payload': json.dumps(raw_payload),
+                    'mapping': json.dumps({"price": "api", "time": "provider"}),
                     'is_error': validation["is_error"]
                 }
 

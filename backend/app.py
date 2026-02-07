@@ -175,7 +175,7 @@ def get_inventory_aggregated():
             if data:
                 lme_data[metal] = query_to_dict(data)
         
-        # 3. 获取 SHFE 最新数据 (如果数据库没有，则返回模拟数据以保证 UI 完整)
+        # 3. 获取 SHFE 最新数据
         shfe_data = {}
         for metal in ['silver', 'gold', 'copper']:
             data = session.query(ComexWarehouse).filter(
@@ -184,23 +184,6 @@ def get_inventory_aggregated():
             ).order_by(ComexWarehouse.date.desc()).first()
             if data:
                 shfe_data[metal] = query_to_dict(data)
-            else:
-                # 模拟数据 (单位: 吨)
-                mocks = {
-                    'silver': {'total_oz': 1250.5, 'eligible_oz': 800.0, 'registered_oz': 450.5, 'unit': '吨'},
-                    'gold': {'total_oz': 5.2, 'eligible_oz': 3.0, 'registered_oz': 2.2, 'unit': '吨'},
-                    'copper': {'total_oz': 85000, 'eligible_oz': 50000, 'registered_oz': 35000, 'unit': '吨'}
-                }
-                shfe_data[metal] = {
-                    'metal': metal,
-                    'total_oz': mocks[metal]['total_oz'],
-                    'eligible_oz': mocks[metal]['eligible_oz'],
-                    'registered_oz': mocks[metal]['registered_oz'],
-                    'source': 'SHFE',
-                    'quality': 'MOCKED',
-                    'report_date': datetime.now().strftime('%Y-%m-%d'),
-                    'unit': mocks[metal].get('unit', '吨')
-                }
 
         session.close()
         
@@ -499,7 +482,7 @@ def api_info():
     """API信息"""
     return jsonify({
         'service': 'Silver & Gold Market Data API',
-        'version': '1.0.0',
+        'version': '3.0.0',
         'description': '金银市场数据采集和分析API',
         'endpoints': {
             'collection': '/api/collect',
